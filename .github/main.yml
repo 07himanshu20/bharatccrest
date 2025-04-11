@@ -1,0 +1,26 @@
+
+name: Deploy Static Site to AWS S3
+
+on:
+  push:
+    branches:
+      - main  # Change if your deployment branch is different
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Sync files to S3
+        uses: jakejarvis/s3-sync-action@master
+        with:
+          args: --delete --acl public-read
+        env:
+          AWS_S3_BUCKET: bharatcrest
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # ✅ Corrected this line
+          AWS_REGION: ap-south-1
+          SOURCE_DIR: '.'  # or '.' if files are at root
