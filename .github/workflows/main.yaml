@@ -13,23 +13,27 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Set up SSH key
+      - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.EC2_IP }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
         env:
-          EC2_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          EC2_HOST: ${{ secrets.EC2_IP }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
 
       - name: Deploy to EC2
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.EC2_IP }} << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
             set -e
-            cd /home/ubuntu/bharatccrest || git clone git@github.com:07himanshu20/bharatccrest.git /home/ubuntu/bharatccrest
-            cd /home/ubuntu/bharatccrest
-            git pull origin main
+            if [ -d /home/ubuntu/bharatccrest ]; then
+              cd /home/ubuntu/bharatccrest
+              git pull origin main
+            else
+              git clone git@github.com:07himanshu20/bharatccrest.git /home/ubuntu/bharatccrest
+              cd /home/ubuntu/bharatccrest
+            fi
             sudo chown -R ubuntu:ubuntu /home/ubuntu/bharatccrest
             sudo systemctl restart nginx
           EOF
