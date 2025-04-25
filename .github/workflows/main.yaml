@@ -17,10 +17,12 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
 
+     
       - name: Sync static files to EC2
         run: |
-          rsync -avz --delete \
-            ./ ubuntu@${{ secrets.EC2_PUBLIC_IP }}:/home/ubuntu/bharatccrest/
+         rsync -avz --delete \
+         -e "ssh -o StrictHostKeyChecking=no" \
+         ./ ubuntu@${{ secrets.EC2_PUBLIC_IP }}:/home/ubuntu/bharatccrest/
 
       - name: Deploy NGINX config
         run: |
