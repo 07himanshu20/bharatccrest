@@ -19,21 +19,13 @@ jobs:
       - name: Deploy to EC2
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_IP }} "
-            # Ensure directory exists
-            mkdir -p /home/ubuntu/bharatccrest
+            # Navigate to project directory
             cd /home/ubuntu/bharatccrest
             
-            # Clean existing files (optional)
-            # rm -rf ./* 2>/dev/null || true
+            # Pull latest changes (if repo already exists)
+            git pull origin main || git clone https://github.com/yourusername/your-repo.git .
             
-            # Clone/pull logic
-            if [ -d .git ]; then
-              git pull origin main
-            else
-              git clone https://${{ secrets.GH_TOKEN }}@github.com/yourusername/your-repo.git .
-            fi
-            
-            # Fix permissions
+            # Ensure permissions (optional)
             sudo chown -R ubuntu:ubuntu /home/ubuntu/bharatccrest
             
             # Restart Nginx
