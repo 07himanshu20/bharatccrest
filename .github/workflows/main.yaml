@@ -2,32 +2,34 @@ name: Deploy to EC2
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
 
-      - name: Install SSH Key
-        uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.EC2_IP }} >> ~/.ssh/known_hosts
+        env:
+          EC2_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_IP }}
 
       - name: Deploy to EC2
         run: |
-          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_IP }} "
-            # Navigate to project directory
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.EC2_IP }} << 'EOF'
+            set -e
+            cd /home/ubuntu/bharatccrest || git clone git@github.com:07himanshu20/bharatccrest.git /home/ubuntu/bharatccrest
             cd /home/ubuntu/bharatccrest
-            
-            # Pull latest changes (if repo already exists)
-            git pull origin main || git clone https://github.com/yourusername/your-repo.git .
-            
-            # Ensure permissions (optional)
+            git pull origin main
             sudo chown -R ubuntu:ubuntu /home/ubuntu/bharatccrest
-            
-            # Restart Nginx
             sudo systemctl restart nginx
-          "
+          EOF
