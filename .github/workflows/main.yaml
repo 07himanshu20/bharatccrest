@@ -1,39 +1,40 @@
-name: Deploy to EC2
+name: Deploy Static Site
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Set up SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
-        env:
-          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
-          EC2_HOST: ${{ secrets.EC2_HOST }}
+      - name: Set up SSH key
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
 
-      - name: Deploy to EC2
+      - name: Sync static files to EC2
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
-            set -e
-            if [ -d /home/ubuntu/bharatccrest ]; then
-              cd /home/ubuntu/bharatccrest
-              git pull origin main
-            else
-              git clone git@github.com:07himanshu20/bharatccrest.git /home/ubuntu/bharatccrest
-              cd /home/ubuntu/bharatccrest
-            fi
-            sudo chown -R ubuntu:ubuntu /home/ubuntu/bharatccrest
-            sudo systemctl restart nginx
+          rsync -avz --delete \
+            ./ ubuntu@${{ secrets.EC2_PUBLIC_IP }}:/home/ubuntu/bharatccrest/
+
+      - name: Deploy NGINX config
+        run: |
+          scp -o StrictHostKeyChecking=no \
+            nginx/bharatccrest.conf \
+            ubuntu@${{ secrets.EC2_PUBLIC_IP }}:/tmp/bharatccrest.conf
+
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_PUBLIC_IP }} << 'EOF'
+            sudo mv /tmp/bharatccrest.conf /etc/nginx/sites-available/bharatccrest.conf
+            sudo ln -sf /etc/nginx/sites-available/bharatccrest.conf \
+                        /etc/nginx/sites-enabled/bharatccrest.conf
           EOF
+
+      - name: Test & reload NGINX
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_PUBLIC_IP }} \
+            'sudo nginx -t && sudo systemctl reload nginx'
