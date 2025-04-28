@@ -1,42 +1,26 @@
-name: Deploy Static Site
+name: Deploy to EC2
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main   # or your branch name
 
 jobs:
   deploy:
+    name: Deploy Project
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+    - name: Checkout the code
+      uses: actions/checkout@v4
 
-      - name: Set up SSH key
-        uses: webfactory/ssh-agent@v0.5.3
-        with:
-          ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-
-     
-      - name: Sync static files to EC2
-        run: |
-         rsync -avz --delete \
-         -e "ssh -o StrictHostKeyChecking=no" \
-         ./ ubuntu@${{ secrets.EC2_PUBLIC_IP }}:/home/ubuntu/bharatccrest/
-
-      - name: Deploy NGINX config
-        run: |
-          scp -o StrictHostKeyChecking=no \
-            nginx/bharatccrest.conf \
-            ubuntu@${{ secrets.EC2_PUBLIC_IP }}:/tmp/bharatccrest.conf
-
-          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_PUBLIC_IP }} << 'EOF'
-            sudo mv /tmp/bharatccrest.conf /etc/nginx/sites-available/bharatccrest.conf
-            sudo ln -sf /etc/nginx/sites-available/bharatccrest.conf \
-                        /etc/nginx/sites-enabled/bharatccrest.conf
-          EOF
-
-      - name: Test & reload NGINX
-        run: |
-          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_PUBLIC_IP }} \
-            'sudo nginx -t && sudo systemctl reload nginx'
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@v0.1.10
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        script: |
+          cd /home/ubuntu/bharatccrest
+          git pull origin main
+          sudo systemctl reload nginx
