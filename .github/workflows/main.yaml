@@ -14,13 +14,28 @@ jobs:
     - name: Checkout the code
       uses: actions/checkout@v4
 
-    - name: Deploy to EC2
-      uses: appleboy/ssh-action@v0.1.10
+    - name: Set up SSH key for EC2
+      uses: webfactory/ssh-agent@v0.5.3
       with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USERNAME }}
-        key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-        script: |
+        ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+        
+    - name: Deploy to EC2
+      run: |
+        ssh -o StrictHostKeyChecking=no -T ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
+          # Navigate to your project directory
           cd /home/ubuntu/bharatccrest
+          
+          # Pull the latest code from GitHub
           git pull origin main
+          
+          # Add build steps if necessary (e.g., npm install, npm run build)
+          # npm install
+          # npm run build
+          
+          # Reload nginx after deployment
           sudo systemctl reload nginx
+        EOF
+      env:
+        EC2_HOST: ${{ secrets.EC2_HOST }}
+        EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+
